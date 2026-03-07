@@ -1,0 +1,8 @@
+venv/
+data/
+config/
+__pycache__/
+*.xlsx
+*.xls
+*.csv
+.DS_Store
