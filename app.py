@@ -25,10 +25,10 @@ st.set_page_config(page_title="Portfolio Allocation Tool", layout="wide")
 # --- Custom styling ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Source+Sans+Pro:wght@300;400;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600&display=swap');
 
     h1, h2, h3 {
-        font-family: 'Playfair Display', serif !important;
+        font-family: 'Avenir Next', 'Avenir', -apple-system, BlinkMacSystemFont, sans-serif !important;
         color: #3D3229 !important;
         font-weight: 600 !important;
     }
@@ -52,7 +52,7 @@ st.markdown("""
     }
 
     [data-testid="stMetricValue"] {
-        font-family: 'Playfair Display', serif !important;
+        font-family: 'Avenir Next', 'Avenir', -apple-system, BlinkMacSystemFont, sans-serif !important;
         color: #3D3229 !important;
     }
 
@@ -694,7 +694,7 @@ if master is not None and len(master) > 0:
 # ============================================================
 st.markdown("---")
 st.markdown('<p style="color:#A09080;font-size:18px;font-weight:600;margin-bottom:4px;'
-            'font-family:Playfair Display,serif;">Reference Data</p>', unsafe_allow_html=True)
+            'font-family:Avenir Next,Avenir,-apple-system,BlinkMacSystemFont,sans-serif;">Reference Data</p>', unsafe_allow_html=True)
 
 ref_rates = st.session_state.display_rates if st.session_state.display_rates else rates
 col_fx, col_prices, col_classes = st.columns(3)
