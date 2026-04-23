@@ -3,6 +3,16 @@ Parser for Broker C exports.
 Reads the file without headers (column titles are in row 26 area),
 filters to 'Positions and Mark-to-Market Profit and Loss' / 'Summary' rows.
 Handles both Excel (.xlsx/.xls) and CSV (.csv) files.
+
+Note on cash balance treatment:
+    Broker C reports cash (Forex) balances with both the native-currency
+    quantity (column I / index 8) and the USD equivalent (column M / index 12).
+    For Forex rows we therefore use:
+        Balance (Local) = column 8   (native currency amount)
+        Balance (USD)   = column 12  (USD equivalent, already provided)
+    For non-Forex rows we keep the original behaviour:
+        Balance (Local) = column 12  (in the instrument's own currency)
+        Balance (USD)   = None       (populated downstream by fx_rates.convert_to_usd)
 """
 
 import pandas as pd
@@ -46,7 +56,8 @@ def parse(file, file_config, mapping_asset_class, mapping_us_situs):
             4: "Currency",
             5: "Symbol",
             6: "Description",
-            12: "Market Value",
+            8: "Local Quantity",   # Native-currency amount (used for Forex cash rows)
+            12: "Market Value",    # USD value
         }
     )
 
@@ -107,6 +118,19 @@ def parse(file, file_config, mapping_asset_class, mapping_us_situs):
     df["Asset Name"] = df.apply(determine_asset_name, axis=1)
 
     # --- 8. Build the standard output ---
+    # Forex rows: Balance (Local) = Local Quantity (col 8), Balance (USD) = Market Value (col 12)
+    # Non-Forex rows: Balance (Local) = Market Value (col 12), Balance (USD) = None (filled downstream)
+    is_forex = df["Field Value"] == "Forex"
+
+    balance_local = pd.to_numeric(
+        df["Local Quantity"].where(is_forex, df["Market Value"]),
+        errors="coerce",
+    )
+    balance_usd = pd.to_numeric(
+        df["Market Value"].where(is_forex, other=pd.NA),
+        errors="coerce",
+    )
+
     output = pd.DataFrame(
         {
             "Asset Name": df["Asset Name"].values,
@@ -116,8 +140,8 @@ def parse(file, file_config, mapping_asset_class, mapping_us_situs):
             "Account Type": file_config["account_type"],
             "Jurisdiction": file_config["jurisdiction"],
             "Beneficiary": file_config["beneficiary"],
-            "Balance (Local)": pd.to_numeric(df["Market Value"], errors="coerce").values,
-            "Balance (USD)": None,
+            "Balance (Local)": balance_local.values,
+            "Balance (USD)": balance_usd.values,
             "US Situs Flag": df["US Situs Flag"].values,
             "Tag": file_config.get("tag", ""),
         }

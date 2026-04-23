@@ -48,10 +48,14 @@ def convert_to_usd(df, rates):
     """
     Populate the 'Balance (USD)' column using FX rates.
 
+    If a row already has a Balance (USD) value (e.g. because the source
+    parser had a USD amount directly available, like Broker C's cash rows),
+    that existing value is preserved and is NOT overwritten.
+
     Parameters
     ----------
     df : pd.DataFrame
-        Must have 'Currency' and 'Balance (Local)' columns.
+        Must have 'Currency', 'Balance (Local)', and 'Balance (USD)' columns.
     rates : dict
         FX rates with USD as base (from fetch_fx_rates).
 
@@ -62,6 +66,11 @@ def convert_to_usd(df, rates):
     df = df.copy()
 
     def to_usd(row):
+        # Preserve any pre-populated USD value (e.g. from broker_c.py Forex rows)
+        existing = row.get("Balance (USD)")
+        if pd.notna(existing):
+            return existing
+
         ccy = row["Currency"]
         local_amount = row["Balance (Local)"]
         if pd.isna(local_amount):
