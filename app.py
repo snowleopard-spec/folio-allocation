@@ -627,6 +627,17 @@ if master is not None and len(master) > 0:
                 st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
                 st.markdown(hidden_html if hide_balances else legend_html, unsafe_allow_html=True)
 
+        # Cash breakdown by institution
+        st.subheader("Cash by Institution")
+        cash_only = master[master["Asset Class"] == "Cash"]
+        if len(cash_only) > 0:
+            fig, legend_html, hidden_html = make_allocation_bar(cash_only, "Institution")
+            if fig:
+                st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+                st.markdown(hidden_html if hide_balances else legend_html, unsafe_allow_html=True)
+        else:
+            st.caption("No cash holdings in the portfolio.")
+
         # PDF download
         st.markdown("---")
         ref_rates_pdf = st.session_state.display_rates if st.session_state.display_rates else rates
@@ -638,6 +649,7 @@ if master is not None and len(master) > 0:
             ("Institution", master, "Institution"),
             ("Account Type", master, "Account Type"),
             ("US Situs", master, "US Situs Flag"),
+            ("Cash by Institution", master[master["Asset Class"] == "Cash"], "Institution"),
         ]
         try:
             pdf_bytes = generate_pdf(master, pdf_charts, ref_rates_pdf, st.session_state.fetched_prices, hide_balances)
