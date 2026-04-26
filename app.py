@@ -66,6 +66,17 @@ st.markdown("""
     .stMarkdown table th {
         border: none !important;
     }
+
+    /* Holdings table — tinted panel via Streamlit's dataframe wrapper */
+    [data-testid="stDataFrame"] {
+        background-color: #EFE8DC !important;
+        border: 1px solid #D9CFBE !important;
+        border-radius: 6px !important;
+        padding: 8px !important;
+    }
+    [data-testid="stDataFrame"] [data-testid="stDataFrameResizable"] {
+        background-color: #EFE8DC !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -398,6 +409,28 @@ def generate_pdf(master_df, chart_configs, ref_rates, stock_prices, hide_balance
     return buf.getvalue()
 
 
+# --- Excel export ---
+def generate_excel(df, columns):
+    """
+    Export the master holdings table to a single-sheet Excel file.
+    Numbers stay numeric (no string formatting), so the recipient can
+    pivot, sort, and compute on them directly.
+    """
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        df[columns].to_excel(writer, sheet_name="Holdings", index=False)
+        # Light formatting touches: freeze the header row, widen columns a bit
+        ws = writer.sheets["Holdings"]
+        ws.freeze_panes = "A2"
+        for col_idx, col_name in enumerate(columns, start=1):
+            # Estimate a reasonable width from header + sample of values
+            sample = df[col_name].astype(str).head(50)
+            max_len = max([len(str(col_name))] + [len(v) for v in sample])
+            ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = min(max_len + 2, 40)
+    buf.seek(0)
+    return buf.getvalue()
+
+
 # --- Save/Load helpers ---
 def save_compiled(df, fx_rates, stock_prices):
     os.makedirs(SAVE_DIR, exist_ok=True)
@@ -638,7 +671,9 @@ if master is not None and len(master) > 0:
         else:
             st.caption("No cash holdings in the portfolio.")
 
-        # PDF download
+        # ============================================================
+        # SECTION: Downloads
+        # ============================================================
         st.markdown("---")
         ref_rates_pdf = st.session_state.display_rates if st.session_state.display_rates else rates
         pdf_charts = [
@@ -651,17 +686,32 @@ if master is not None and len(master) > 0:
             ("US Situs", master, "US Situs Flag"),
             ("Cash by Institution", master[master["Asset Class"] == "Cash"], "Institution"),
         ]
-        try:
-            pdf_bytes = generate_pdf(master, pdf_charts, ref_rates_pdf, st.session_state.fetched_prices, hide_balances)
-            st.download_button(
-                label="Download PDF Report",
-                data=pdf_bytes,
-                file_name=f"asset_allocation_{date.today().strftime('%Y%m%d')}.pdf",
-                mime="application/pdf")
-        except ImportError:
-            st.warning("PDF export requires reportlab. Run: pip install reportlab")
-        except Exception as e:
-            st.error(f"PDF generation failed: {e}")
+
+        col_pdf, col_excel = st.columns(2)
+
+        with col_pdf:
+            try:
+                pdf_bytes = generate_pdf(master, pdf_charts, ref_rates_pdf, st.session_state.fetched_prices, hide_balances)
+                st.download_button(
+                    label="Download PDF Report",
+                    data=pdf_bytes,
+                    file_name=f"asset_allocation_{date.today().strftime('%Y%m%d')}.pdf",
+                    mime="application/pdf")
+            except ImportError:
+                st.warning("PDF export requires reportlab. Run: pip install reportlab")
+            except Exception as e:
+                st.error(f"PDF generation failed: {e}")
+
+        with col_excel:
+            try:
+                excel_bytes = generate_excel(master, display_cols)
+                st.download_button(
+                    label="Download Holdings (Excel)",
+                    data=excel_bytes,
+                    file_name=f"portfolio_holdings_{date.today().strftime('%Y%m%d')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            except Exception as e:
+                st.error(f"Excel generation failed: {e}")
 
     # ============================================================
     # SECTION: Unmapped Items
